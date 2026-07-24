@@ -1,6 +1,5 @@
 package com.watashi;
 
-import hexacloud.core.cluster.Cluster;
 import hexacloud.core.ports.GatewayBuilderPort;
 import hexacloud.core.server.HttpEngine;
 import hexacloud.core.server.PerformanceProfile;
@@ -12,6 +11,12 @@ import hexacloud.infra.gateway.GatewayFactory;
  * Main entry point for the Gateway application.
  */
 public class GatewayApplication {
+
+    private final String[] clusters = {
+        "knowledge_service",
+        "ai_service",
+    };
+
     public static void main(String[] args) {
         System.out.println("Gateway application started");
         DebugUtils.setDebugEnabled(true);
@@ -19,31 +24,25 @@ public class GatewayApplication {
     }
 
     void start() {
-        GatewayBuilderPort builder = GatewayFactory.createGateway("gt-watashi")
-            .createCluster("cl-watashi")
-            .port(3000)
+        GatewayBuilderPort builder = GatewayFactory.createGateway("gt-watashi") // gateway name
+            .createCluster("auth_service")  // cluster name
+            .port(8079) // default port http = 8080
             .enableTelnet(false)
-            .enableWs(false)
+            .enableWs(false) 
             .enableHttp(true)
             .enableTcpProxy(false)
-            .requireToken(false, "null")
+            .requireToken(false, null)
             .rateLimit(60, 10)
             .httpEngine(HttpEngine.UNDERTOW)
             .performanceProfile(PerformanceProfile.MAX_PERFORMANCE);
 
-        builder.routeHost("localhost", "/auth/**", "cl-watashi");
+        for(String cl : clusters) {
+            builder.createCluster(cl);
+        }
 
-        builder.getCluster().setRoutingMode(Cluster.RoutingMode.LOAD_BALANCER_ONLY);
-
-        builder.registerNode("https://api-shiori.hexacloud.net.br", 443)
-                .external(true)
-                .pingPath("/health")
-                .register();
-        
-        builder.registerNode("https://gatebridge.hexacloud.net.br", 443)
-                .external(true)
-                .pingPath("/public_telemetry")
-                .register();
+        builder.routeHost("localhost", "/auth/**", "auth_service");
+        builder.routeHost("localhost", "/knowledge/**", "knowledge_service");
+        builder.routeHost("localhost", "/ai/**", "ai_service");
 
         var gateway = builder.listen();
 

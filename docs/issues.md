@@ -38,3 +38,11 @@ Should become:
 ```java
 requireToken(false);
 ```
+
+
+## Cluster 
+
+- review flux of creation of a new cluster.
+
+- on create the cluster automatically created on default gateway, but this is wrong 
+![alt text](image-1.png)
