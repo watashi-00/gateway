@@ -5,7 +5,10 @@
 | Knowledge Service |                         8082 |
 | AI Service        |                         8083 |
 | Worker Service    |  8084 (no HTTP, if possible) |
-----------------------------------------------------
+
+
+| Docker Compose    |                         Port |
+| ----------------- | ---------------------------: |
 | PostgreSQL        |                         5432 |
 | Redis             |                         6379 |
 | RabbitMQ          |                         5672 |
