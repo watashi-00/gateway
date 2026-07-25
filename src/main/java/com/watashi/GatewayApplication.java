@@ -1,5 +1,9 @@
 package com.watashi;
 
+import hexacloud.core.cluster.Cluster.RoutingMode;
+import hexacloud.core.model.NodeStatus;
+import hexacloud.core.model.PingProtocol;
+import hexacloud.core.model.ServerNode;
 import hexacloud.core.ports.GatewayBuilderPort;
 import hexacloud.core.server.HttpEngine;
 import hexacloud.core.server.PerformanceProfile;
@@ -12,11 +16,6 @@ import hexacloud.infra.gateway.GatewayFactory;
  */
 public class GatewayApplication {
 
-    private final String[] clusters = {
-        "knowledge_service",
-        "ai_service",
-    };
-
     public static void main(String[] args) {
         System.out.println("Gateway application started");
         DebugUtils.setDebugEnabled(true);
@@ -25,31 +24,32 @@ public class GatewayApplication {
 
     void start() {
         GatewayBuilderPort builder = GatewayFactory.createGateway("gt-watashi") // gateway name
-            .createCluster("auth_service")  // cluster name
-            .port(8079) // default port http = 8080
-            .enableTelnet(false)
-            .enableWs(false) 
-            .enableHttp(true)
-            .enableTcpProxy(false)
-            .requireToken(false, null)
-            .rateLimit(60, 10)
-            .httpEngine(HttpEngine.UNDERTOW)
-            .performanceProfile(PerformanceProfile.MAX_PERFORMANCE);
+            .createCluster("cl-watashi")                         // cluster name
+            .port(8079)                                          // base port
+            .enableHttp(true)                                    // enable http requests http port = base + 1;
+            .requireToken(false, System.getenv("SECRET_KEY"))     // enable token authentication
+            .rateLimit(60, 10).httpEngine(HttpEngine.JDK_DEFAULT)// JDK_DEFAULT | UNDERTOW 
+            .performanceProfile(PerformanceProfile.MAX_PERFORMANCE);// MAX_PERFORMANCE | STANDARD
 
-        for(String cl : clusters) {
-            builder.createCluster(cl);
-        }
 
-        builder.routeHost("localhost", "/auth/**", "auth_service");
-        builder.routeHost("localhost", "/knowledge/**", "knowledge_service");
-        builder.routeHost("localhost", "/ai/**", "ai_service");
+        builder.registerServer(new ServerNode(
+                "node-http-1", "http://localhost", 8081, NodeStatus.OFFLINE, false,
+                PingProtocol.HTTP, "/api/health", "X-Cluster-Token", "watashi_secretKey"
+            ));
 
+        builder.routeHost("localhost", "/auth/**", "cl-watashi");
+
+        var cl = builder.getCluster();
+        cl.setRoutingMode(RoutingMode.LOAD_BALANCER_ONLY);       // LOAD_BALANCER_ONLY | TELEMETRY_ONLY | HYBRID
+        
         var gateway = builder.listen();
-
-        gateway.startPingScheduler();
 
         TerminalUiFactory.createTui("watashi00")
            .seedGateway(gateway)
-           .startToggleMode();
+           .startToggleMode();                                    // create a decoupled TUI that is active when Enter key is pressed
+
+        gateway.startPingScheduler();                             // active ping scheduler
+
     }
 }
+
