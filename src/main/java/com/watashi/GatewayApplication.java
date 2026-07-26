@@ -1,72 +1,79 @@
 package com.watashi;
 
-import hexacloud.core.cluster.Cluster.RoutingMode;
 import hexacloud.core.ports.GatewayBuilderPort;
-import hexacloud.core.server.HttpEngine;
-import hexacloud.core.server.PerformanceProfile;
-import hexacloud.core.tui.TerminalUiFactory;
+import hexacloud.core.ports.RunningGatewayPort;
 import hexacloud.core.utils.common.DebugUtils;
 import hexacloud.infra.gateway.GatewayFactory;
+import hexacloud.core.server.route.RouteController;
+import hexacloud.core.server.route.RouteMapping;
+import hexacloud.core.server.HttpEngine;
+import java.io.PrintWriter;
+import java.net.InetSocketAddress;
+import java.io.IOException;
 
-/**
- * Main entry point for the Gateway application.
- */
 public class GatewayApplication {
 
-    public static void main(String[] args) {
-        System.out.println("Gateway application started");
-        DebugUtils.setDebugEnabled(true);
-        new GatewayApplication().start();
+ private static boolean isPortAvailable(int port) {
+    
+        try (java.net.ServerSocket socket = new java.net.ServerSocket()) {
+            socket.setReuseAddress(true);
+            socket.bind(new InetSocketAddress("0.0.0.0", port));
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
-    void start() {
-        final String secret = System.getenv("SECRET_KEY");
+    public static void main(String[] args) {
 
-        GatewayBuilderPort builder = GatewayFactory.createGateway("gt-watashi")
-            .createCluster("cl-auth")
-                .registerNode("node-auth-1", "http://localhost", 8085)
-                .pingEnabled(true)
-                .pingPath("/api/health")
-                .register()
-            .port(8079)                                
+        System.out.println("=== GatewayApplication Starting ===");
+
+        int basePort = 8079;
+
+        System.out.println(
+            "Checking port " + basePort + "..."
+        );
+
+        if (!isPortAvailable(basePort)) {
+            System.err.println(
+                "ERROR: Port " + basePort + " is already in use."
+            );
+            System.exit(1);
+        }
+
+        System.out.println(
+            "Port " + basePort + " is available."
+        );
+
+        DebugUtils.setDebugEnabled(true);
+
+        System.out.println("Creating gateway builder...");
+
+        GatewayBuilderPort builder = GatewayFactory.createGateway("benchmark-cluster")
+            .createCluster("watata")
+            .port(basePort)
+            .enableTelnet(false)
             .enableHttp(true)
-            .enableTcpProxy(true)
-            .requireToken(false, secret)
-            .rateLimit(60, 10)
-            .httpEngine(HttpEngine.JDK_DEFAULT)
-            .performanceProfile(PerformanceProfile.MAX_PERFORMANCE);
+            .enableWs(true)
+            .enableTcpProxy(false)
+            .requireToken(false, null)
+            .rateLimit(-1, 0)
+            .httpEngine(HttpEngine.JDK_DEFAULT);
 
-        builder.createCluster("cl-knowledge")
-            .registerNode("node-knowledge-1", "http://localhost", 8086)
-                .pingEnabled(true)
-                .pingPath("/api/health")
-                .register();
+        System.out.println("Starting gateway listen()...");
 
-        builder.createCluster("cl-ai")
-            .registerNode("node-ai-1", "http://localhost", 8087)
-                .pingEnabled(true)
-                .pingPath("/api/health")
-                .register();
+        RunningGatewayPort runningGateway = builder.listen();
 
-        builder.createCluster("cl-worker")
-            .registerNode("node-worker-1", "localhost", 8088)
-                .pingEnabled(true)
-                .register();
+        System.out.println(
+            "Gateway started successfully: " + runningGateway
+        );
+    }
 
-        builder.routeHost("localhost", "/auth/**", "cl-auth");
-        builder.routeHost("localhost", "/knowledge/**", "cl-knowledge");
-        builder.routeHost("localhost", "/ai/**", "cl-ai");
-        builder.routeHost("localhost", "/worker/**", "cl-worker");
+    public static class HelloController implements RouteController {
 
-        var cl = builder.getCluster();
-        cl.setRoutingMode(RoutingMode.LOAD_BALANCER_ONLY);
-        
-        var gateway = builder.listen();
-
-        TerminalUiFactory.createTui("watashi00")
-           .seedGateway(gateway)
-           .startToggleMode();                                    
-
-        gateway.startPingScheduler();                             
+        @RouteMapping("HELLO")
+        public void sayHello(String args, PrintWriter out) {
+            out.print("hello");
+        }
     }
 }

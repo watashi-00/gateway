@@ -1,0 +1,27 @@
+services:
+  gateway-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: gateway-edge:latest
+
+    container_name: gateway-edge
+
+    ports:
+      - "8079:8079"
+      - "8080:8080"
+      - "8081:8081"
+      - "8082:8082"
+
+    environment:
+      HEXACLOUD_STATE_DIR: /app/data
+      SECRET_KEY: potato_chipz
+
+    mem_limit: 1g
+    cpus: 2.0
+
+    restart: unless-stopped
+
+volumes:
+  gateway_state:

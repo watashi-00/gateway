@@ -1,10 +1,10 @@
 | Service           |                         Port |
 | ----------------- | ---------------------------: |
 | GateBridge        |       **8080** (entry point) |
-| Auth Service      |                         8081 |
-| Knowledge Service |                         8082 |
-| AI Service        |                         8083 |
-| Worker Service    |  8084 (no HTTP, if possible) |
+| Auth Service      |                         8085 |
+| Knowledge Service |                         8086 |
+| AI Service        |                         8087 |
+| Worker Service    |  8088 (no HTTP, if possible) |
 
 
 | Docker Compose    |                         Port |
