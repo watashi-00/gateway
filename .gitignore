@@ -2,3 +2,4 @@ target
 .state
 .vscode
 *.png
+local-maven-repo
